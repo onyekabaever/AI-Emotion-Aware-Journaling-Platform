@@ -1,0 +1,47 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --radius: 14px;
+  /* Design tokens */
+  --divider: rgba(0, 0, 0, 0.08);
+  --band-border: rgba(0, 0, 0, 0.08);
+  --band-from: rgba(255, 255, 255, 0.60);
+  --band-to: rgba(245, 245, 245, 0.60);
+  --band-accent: rgba(99, 102, 241, 0.08);
+  --accent-start: #6366f1; /* indigo-500 */
+  --accent-end: #d946ef;   /* fuchsia-500 */
+}
+
+.dark {
+  --divider: rgba(255, 255, 255, 0.15);
+  --band-border: rgba(255, 255, 255, 0.15);
+  --band-from: rgba(23, 23, 23, 0.50);
+  --band-to: rgba(38, 38, 38, 0.40);
+  --band-accent: rgba(99, 102, 241, 0.12);
+  --accent-start: #6366f1;
+  --accent-end: #d946ef;
+}
+.container-prose {
+  @apply prose prose-zinc max-w-none dark:prose-invert;
+}
+.btn {
+  @apply inline-flex items-center justify-center rounded-2xl px-4 py-2 text-sm font-semibold shadow-soft transition;
+}
+.btn-primary {
+  @apply bg-indigo-600 text-white hover:bg-indigo-700;
+}
+.btn-ghost {
+  @apply bg-transparent hover:bg-neutral-100 dark:hover:bg-neutral-800;
+}
+.card {
+  @apply rounded-3xl border border-neutral-200/60 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 shadow-soft;
+}
+.input {
+  @apply rounded-2xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 outline-none focus:ring-2 ring-indigo-500;
+}
+.badge {
+  @apply text-xs rounded-full px-2 py-1 bg-neutral-100 dark:bg-neutral-800;
+}
