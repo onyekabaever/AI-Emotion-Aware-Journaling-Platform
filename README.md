@@ -28,7 +28,7 @@ More features, documentation, model refinement, and backend integration will be 
 - 🔄 Integration of ONNX models into Django backend
 - 🔄 Building REST APIs for `/analyze-text`, `/analyze-speech`, and combined `/analyze-entry`
 - 🔄 Full journaling dashboard + emotion analytics
-- 🔄 Secure user authentication & cloud deployment
+- 🔄 Secure user authentication 
 
 ## 🔬 Technology Stack
 
