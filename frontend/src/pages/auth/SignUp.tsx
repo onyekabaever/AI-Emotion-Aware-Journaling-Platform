@@ -17,17 +17,17 @@ function getStrength(pw: string) {
 export default function SignUp() {
   const { signUp } = useAuth()
   const nav = useNavigate()
-  const [name, setName] = useState('')
+  const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string; confirm?: string }>({})
+  const [errors, setErrors] = useState<{ username?: string; email?: string; password?: string; confirm?: string }>({})
 
   const validate = () => {
     const next: typeof errors = {}
-    if (!name.trim()) next.name = 'Please enter your name.'
+    if (!username.trim()) next.username = 'Please enter a username.'
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) next.email = 'Enter a valid email address.'
     if (password.length < 8) next.password = 'Use at least 8 characters.'
     if (confirm !== password) next.confirm = 'Passwords do not match.'
@@ -40,7 +40,7 @@ export default function SignUp() {
     if (!validate()) return
     try {
       setLoading(true)
-      await signUp(name.trim(), email.trim(), password)
+      await signUp(username.trim(), email.trim(), password)
       toast.success('Account created')
       nav('/app')
     } catch (err) {
@@ -62,22 +62,22 @@ export default function SignUp() {
 
       <form onSubmit={onSubmit} className="mt-6 space-y-4" noValidate>
         <div>
-          <label htmlFor="name" className="text-sm font-medium">Name</label>
+          <label htmlFor="username" className="text-sm font-medium">Username</label>
           <div className="relative mt-1">
             <input
-              id="name"
+              id="username"
               className="input w-full pr-10"
-              placeholder="Ada Lovelace"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              autoComplete="name"
-              aria-invalid={Boolean(errors.name)}
-              aria-describedby={errors.name ? 'name-error' : undefined}
+              placeholder="your-username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoComplete="username"
+              aria-invalid={Boolean(errors.username)}
+              aria-describedby={errors.username ? 'username-error' : undefined}
               required
             />
             <User className="size-4 absolute right-3 top-1/2 -translate-y-1/2 opacity-60 pointer-events-none" />
           </div>
-          {errors.name && <p id="name-error" className="mt-1 text-sm text-red-600 dark:text-red-400" aria-live="polite">{errors.name}</p>}
+          {errors.username && <p id="username-error" className="mt-1 text-sm text-red-600 dark:text-red-400" aria-live="polite">{errors.username}</p>}
         </div>
 
         <div>

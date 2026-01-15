@@ -1,15 +1,35 @@
 
 import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
 import { useJournal } from '../../state/journal'
 import EmotionBadge from '../../components/EmotionBadge'
 import { PenSquare, AudioWaveform, Edit3, Eye, Trash2, Filter } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { fetchJournalEntries, deleteJournalEntry } from '../../services/journal'
+
+const sentimentLabel = (score?: number | null) => {
+  if (score == null) return 'No AI feedback yet'
+  if (score > 0.2) return 'Mostly positive'
+  if (score < -0.2) return 'Mostly negative'
+  return 'Mixed / neutral'
+}
 
 export default function JournalList() {
-  const { entries, remove } = useJournal()
+  const { entries, remove, setEntries } = useJournal()
   const [q, setQ] = useState('')
   const [modeFilter, setModeFilter] = useState<'all' | 'text' | 'voice'>('all')
-  const [previewId, setPreviewId] = useState<string | null>(null)
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const remote = await fetchJournalEntries()
+        if (remote.length > 0) {
+          setEntries(remote)
+        }
+      } catch (e) {
+        console.warn('Failed to load journal entries from API, using local data instead', e)
+      }
+    })()
+  }, [setEntries])
 
   const filtered = useMemo(() => {
     const k = q.trim().toLowerCase()
@@ -33,10 +53,13 @@ export default function JournalList() {
 
   const confirmDelete = (id: string) => {
     const ok = window.confirm('Delete this entry? This cannot be undone.')
-    if (ok) remove(id)
+    if (ok) {
+      remove(id)
+      deleteJournalEntry(id).catch(err => {
+        console.warn('Failed to delete entry on server', err)
+      })
+    }
   }
-
-  const selected = entries.find(e => e.id === previewId)
 
   return (
     <div className="space-y-4">
@@ -79,6 +102,11 @@ export default function JournalList() {
               <EmotionBadge emotion={e.emotion} />
             </div>
             <p className="mt-3 line-clamp-3 opacity-90">{e.content}</p>
+            {typeof e.sentiment === 'number' && (
+              <p className="mt-2 text-xs opacity-70">
+                AI insight ({(e.mode || (e.audioUrl ? 'voice' : 'text')) === 'voice' ? 'from voice' : 'from text'}): {sentimentLabel(e.sentiment)}
+              </p>
+            )}
             {e.tags?.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
                 {e.tags.map(t => (
@@ -87,44 +115,14 @@ export default function JournalList() {
               </div>
             )}
             <div className="mt-4 flex gap-2 justify-end">
-              <button onClick={()=>setPreviewId(e.id)} className="btn btn-ghost" aria-label="View entry"><Eye className="size-4 mr-2" /> View</button>
-              <Link to={`/journal/${e.id}`} className="btn btn-ghost" aria-label="Edit entry"><Edit3 className="size-4 mr-2" /> Edit</Link>
+              <Link to={`/journal/${e.id}`} className="btn btn-ghost" aria-label="Open entry"><Eye className="size-4 mr-2" /> Open</Link>
+              <Link to={`/journal/${e.id}/edit`} className="btn btn-ghost" aria-label="Edit entry"><Edit3 className="size-4 mr-2" /> Edit</Link>
               <button onClick={()=>confirmDelete(e.id)} className="btn btn-ghost" aria-label="Delete entry"><Trash2 className="size-4 mr-2" /> Delete</button>
             </div>
           </div>
         ))}
       </div>
       {filtered.length === 0 && <p className="opacity-70">No entries match your filters.</p>}
-
-      {/* Modal preview */}
-      {selected && (
-        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={()=>setPreviewId(null)}>
-          <div className="max-w-2xl w-full card bg-white dark:bg-neutral-900" onClick={(e)=>e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {renderModeBadge(selected.mode, selected.audioUrl)}
-                <h3 className="font-semibold">{selected.title || 'Untitled'}</h3>
-              </div>
-              <div className="flex gap-2">
-                <Link to={`/journal/${selected.id}`} className="btn btn-ghost" aria-label="Edit"><Edit3 className="size-4 mr-2" /> Edit</Link>
-                <button onClick={()=>setPreviewId(null)} className="btn btn-ghost" aria-label="Close">Close</button>
-              </div>
-            </div>
-            <p className="text-xs opacity-70">{new Date(selected.createdAt).toLocaleString()}</p>
-            {selected.audioUrl && (
-              <audio controls src={selected.audioUrl} className="mt-3 w-full" aria-label="Audio playback" />
-            )}
-            <p className="mt-3 whitespace-pre-wrap">{selected.content}</p>
-            {selected.tags?.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {selected.tags.map(t => (
-                  <span key={t} className="badge">#{t}</span>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

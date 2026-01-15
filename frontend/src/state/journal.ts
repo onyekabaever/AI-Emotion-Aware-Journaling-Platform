@@ -1,10 +1,11 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { JournalEntry, EmotionScores } from '../types'
+import { JournalEntry } from '../types'
 
 type State = {
   entries: JournalEntry[]
+  setEntries: (entries: JournalEntry[]) => void
   upsert: (e: JournalEntry) => void
   remove: (id: string) => void
   clearAll: () => void
@@ -15,6 +16,9 @@ type State = {
 
 export const useJournal = create<State>()(persist((set, get) => ({
   entries: [],
+  setEntries(entries) {
+    set({ entries })
+  },
   upsert(e) {
     set(s => {
       const i = s.entries.findIndex(x => x.id === e.id)

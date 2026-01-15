@@ -1,15 +1,16 @@
 # Core ML libraries
-torch>=2.2
-torchaudio>=2.2
+#torch>=2.2
+#torchaudio>=2.2
 transformers>=4.44
 datasets>=3.0
 evaluate>=0.4.2
 accelerate>=0.33
 
-# Specify CUDA version for PyTorch and related libraries
-torch==2.3.0+cu121
-torchvision==0.18.0+cu121
-torchaudio==2.3.0+cu121
+# Specify PyTorch version (CPU/unified wheel from PyPI)
+# NOTE: The "+cu121" variants are not available on PyPI, so we pin to the closest matching versions that do exist.
+torch==2.3.0
+torchvision==0.18.0
+torchaudio==2.3.0
 
 # Data processing and scientific computing
 numpy>=1.26
@@ -32,3 +33,19 @@ pyyaml>=6.0
 # Optional: 8-bit quantization (requires compatible CUDA; official wheels primarily for Linux)
 # On Windows, installation may not be available or may require workarounds.
 bitsandbytes>=0.44.1; platform_system == "Linux"
+
+########## Web backend ##########
+
+Django==5.1.4
+djangorestframework==3.15.2
+psycopg2-binary==2.9.10
+python-dotenv==1.0.1
+
+# DRF auth, CORS, schema
+djangorestframework-simplejwt
+django-cors-headers
+drf-spectacular
+
+# Extra audio utilities
+librosa
+# soundfile already listed above

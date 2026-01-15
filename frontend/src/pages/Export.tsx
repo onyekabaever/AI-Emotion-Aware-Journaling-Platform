@@ -15,7 +15,7 @@ export default function ExportPage() {
   }
 
   const onClearAll = () => {
-    const ok = window.confirm('This will permanently delete all entries stored in your browser. Continue?')
+    const ok = window.confirm('This will permanently delete all entries from this device (and they may still exist on the server). Continue?')
     if (!ok) return
     clearAll()
     toast.success('All entries cleared')

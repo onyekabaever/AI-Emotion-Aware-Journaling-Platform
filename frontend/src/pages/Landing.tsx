@@ -17,7 +17,7 @@ export default function Landing() {
               <h1 id="hero-title" className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-amber-600 bg-clip-text text-transparent">
                 Emotion‑Aware Journaling
               </h1>
-              <p className="opacity-80 text-lg">Write or speak your thoughts. Receive gentle, AI‑powered reflections on your emotional patterns — designed with privacy first and a calming, distraction‑free experience.</p>
+              <p className="opacity-80 text-lg">Write or speak your thoughts. Receive gentle, AI‑powered reflections on your emotional patterns designed with privacy first and a calming, distraction‑free experience.</p>
               <div className="mt-6 flex flex-wrap gap-3" aria-label="Primary actions">
                 {!isAuthenticated ? (
                   <>

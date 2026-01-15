@@ -6,6 +6,13 @@ import { useAuth } from '../state/auth'
 import EmotionBadge from '../components/EmotionBadge'
 import EmotionChart from '../components/EmotionChart'
 
+const sentimentLabel = (score?: number | null) => {
+  if (score == null) return 'No sentiment yet'
+  if (score > 0.2) return 'Mostly positive'
+  if (score < -0.2) return 'Mostly negative'
+  return 'Mixed / neutral'
+}
+
 export default function Dashboard() {
   const { entries, tagCloud } = useJournal()
   const { user } = useAuth()
@@ -28,6 +35,15 @@ export default function Dashboard() {
     return acc
   }, [entries])
 
+  const overallSentiment = useMemo(() => {
+    const values = entries
+      .map(e => e.sentiment)
+      .filter((v): v is number => typeof v === 'number')
+    if (values.length === 0) return null
+    const sum = values.reduce((a, b) => a + b, 0)
+    return sum / values.length
+  }, [entries])
+
   const streakDays = useMemo(() => {
     if (entries.length === 0) return 0
     const keyForDate = (d: Date) => d.toISOString().split('T')[0]
@@ -47,13 +63,16 @@ export default function Dashboard() {
     return entries.filter(e => now - new Date(e.createdAt).getTime() <= sevenDaysMs).length
   }, [entries])
 
+  const textEntries = latest.filter(e => e.mode !== 'voice')
+  const voiceEntries = latest.filter(e => e.mode === 'voice')
+
   return (
     <div className="space-y-6">
       {/* Overview */}
       <section aria-labelledby="overview-title" className="rounded-3xl border border-[var(--band-border)] bg-gradient-to-br from-[var(--band-from)] via-[var(--band-accent)] to-[var(--band-to)] p-6 md:p-8">
         <div className="flex items-end justify-between">
           <div>
-            <h1 id="overview-title" className="text-2xl md:text-3xl font-bold">{user?.name ? `Welcome back, ${user.name}` : 'Your journal dashboard'}</h1>
+			<h1 id="overview-title" className="text-2xl md:text-3xl font-bold">{user?.username ? `Welcome back, ${user.username}` : 'Your journal dashboard'}</h1>
             <p className="text-sm opacity-70">Quick glance at your activity and mood</p>
           </div>
           <div className="hidden md:flex items-center gap-3">
@@ -97,40 +116,91 @@ export default function Dashboard() {
         )}
       </section>
 
-      {/* Main grid */}
+      {/* Main grid: text, voice, and AI feedback grouped */}
       <div className="grid lg:grid-cols-3 gap-6">
-        <section className="lg:col-span-2 card" aria-labelledby="recent-title">
-          <h2 id="recent-title" className="text-xl font-bold mb-3">Recent entries</h2>
-          <div className="divide-y divide-neutral-200/60 dark:divide-neutral-800">
-            {latest.length === 0 && <p className="opacity-70">No entries yet. <Link to="/journal/new" className="underline">Create your first journal</Link>.</p>}
-            {latest.map(e => (
-              <Link key={e.id} to={`/journal/${e.id}`} className="block py-3 hover:bg-neutral-50 dark:hover:bg-neutral-900 rounded-xl px-2">
-                <div className="flex items-center justify-between">
-                  <div className="min-w-0">
-                    <p className="font-semibold truncate">{e.title || 'Untitled'}</p>
-                    <p className="text-sm opacity-70">{new Date(e.createdAt).toLocaleString()}</p>
-                    {e.tags?.length > 0 && (
-                      <div className="mt-1 flex flex-wrap gap-2">
-                        {e.tags.slice(0, 4).map(t => <span key={t} className="badge">{t}</span>)}
+        <section className="lg:col-span-2 card space-y-4" aria-labelledby="journal-title">
+          <h2 id="journal-title" className="text-xl font-bold">Journal overview</h2>
+          {latest.length === 0 && (
+            <p className="opacity-70 text-sm">No entries yet. <Link to="/journal/new" className="underline">Create your first journal</Link>.</p>
+          )}
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <h3 className="text-sm font-semibold mb-2">Recent text entries</h3>
+              <div className="space-y-2">
+                {textEntries.length === 0 && (
+                  <p className="opacity-70 text-sm">No text entries yet.</p>
+                )}
+                {textEntries.map(e => (
+                  <Link
+                    key={e.id}
+                    to={`/journal/${e.id}`}
+                    className="block rounded-xl border border-neutral-200/60 dark:border-neutral-800 p-3 hover:bg-neutral-50 dark:hover:bg-neutral-900"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold truncate">{e.title || 'Untitled'}</p>
+                        <p className="text-xs opacity-70">{new Date(e.createdAt).toLocaleString()}</p>
+                        {e.tags?.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-2">
+                            {e.tags.slice(0, 3).map(t => <span key={t} className="badge">{t}</span>)}
+                          </div>
+                        )}
                       </div>
+                      <EmotionBadge emotion={e.emotion} />
+                    </div>
+                    {e.content && <p className="mt-2 text-xs opacity-80 line-clamp-2">{e.content}</p>}
+                    {typeof e.sentiment === 'number' && (
+                      <p className="mt-1 text-[11px] opacity-70">AI sentiment: {sentimentLabel(e.sentiment)}</p>
                     )}
-                  </div>
-                  <EmotionBadge emotion={e.emotion} />
-                </div>
-                {e.content && <p className="mt-2 text-sm opacity-80 line-clamp-2">{e.content}</p>}
-              </Link>
-            ))}
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-semibold mb-2">Recent voice reflections</h3>
+              <div className="space-y-2">
+                {voiceEntries.length === 0 && (
+                  <p className="opacity-70 text-sm">No voice recordings yet.</p>
+                )}
+                {voiceEntries.map(e => (
+                  <Link
+                    key={e.id}
+                    to={`/journal/${e.id}`}
+                    className="block rounded-xl border border-neutral-200/60 dark:border-neutral-800 p-3 hover:bg-neutral-50 dark:hover:bg-neutral-900"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold truncate">{e.title || 'Voice reflection'}</p>
+                        <p className="text-xs opacity-70">{new Date(e.createdAt).toLocaleString()}</p>
+                        {e.audioUrl && (
+                          <audio className="mt-2 w-full" src={e.audioUrl} controls aria-label="Play recorded reflection" />
+                        )}
+                      </div>
+                      <EmotionBadge emotion={e.emotion} />
+                    </div>
+                    {typeof e.sentiment === 'number' && (
+                      <p className="mt-2 text-[11px] opacity-70">AI sentiment: {sentimentLabel(e.sentiment)}</p>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
 
         <aside className="card space-y-3" aria-labelledby="insights-title">
-          <h2 id="insights-title" className="text-xl font-bold">Emotion insights</h2>
+          <h2 id="insights-title" className="text-xl font-bold">Emotion & AI insights</h2>
           <EmotionChart emotion={overall} />
           <ul className="space-y-1 text-sm">
             <li>Total entries: <b>{total}</b></li>
             <li>Unique tags: <b>{uniqueTags}</b></li>
             <li>Last 7 days: <b>{last7Count}</b></li>
           </ul>
+          <p className="text-xs opacity-70 mt-2">
+            Overall AI sentiment: <span className="font-medium">{sentimentLabel(overallSentiment)}</span>
+          </p>
         </aside>
 
         <section className="lg:col-span-3 card" aria-labelledby="quick-title">
@@ -138,8 +208,6 @@ export default function Dashboard() {
           <div className="flex flex-wrap gap-3">
             <Link to="/journal/new" className="btn btn-primary">New entry</Link>
             <Link to="/prompts" className="btn btn-ghost">Browse prompts</Link>
-            <Link to="/export" className="btn btn-ghost">Export data</Link>
-            <Link to="/settings" className="btn btn-ghost">Settings</Link>
           </div>
         </section>
       </div>

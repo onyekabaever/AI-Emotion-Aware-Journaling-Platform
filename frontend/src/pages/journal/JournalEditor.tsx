@@ -3,17 +3,19 @@ import { useEffect, useMemo, useState, useRef } from 'react'
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { useJournal } from '../../state/journal'
 import { analyzeTextEmotion, analyzeAudioEmotion } from '../../services/ai'
+import { createJournalEntry, updateJournalEntry, deleteJournalEntry } from '../../services/journal'
 import AudioRecorder from '../../components/AudioRecorder'
-import TagInput from '../../components/TagInput'
 import EmotionChart from '../../components/EmotionChart'
+import EmotionInsight from '../../components/EmotionInsight'
 import { JournalEntry } from '../../types'
 import { toast } from 'sonner'
+import { Trash2 } from 'lucide-react'
 
 export default function JournalEditor() {
   const { id, mode } = useParams()
   const navigate = useNavigate()
   const location = useLocation() as any
-  const { byId, upsert } = useJournal()
+  const { byId, upsert, remove } = useJournal()
   const existing = useMemo(() => id ? byId(id) : undefined, [id, byId])
 
   const [title, setTitle] = useState(existing?.title || '')
@@ -22,14 +24,27 @@ export default function JournalEditor() {
   const [audioUrl, setAudioUrl] = useState<string | undefined>(existing?.audioUrl)
   const [emotion, setEmotion] = useState(existing?.emotion)
   const [sentiment, setSentiment] = useState(existing?.sentiment)
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null)
+  const [audioSource, setAudioSource] = useState<Blob | File | null>(null)
 
   const recognitionRef = useRef<any>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [dictating, setDictating] = useState(false)
   const [analyzingText, setAnalyzingText] = useState(false)
   const [analyzingAudio, setAnalyzingAudio] = useState(false)
 
   // Determine view mode (default to text)
   const viewMode: 'text' | 'voice' = mode === 'voice' ? 'voice' : (existing?.mode === 'voice' ? 'voice' : 'text')
+
+  // When switching between /journal/new/text and /journal/new/voice, clear any
+  // previously generated (unsaved) AI feedback so it doesn't carry over.
+  useEffect(() => {
+    if (!id && !existing) {
+      setTitle('')
+      setEmotion(undefined)
+      setSentiment(undefined)
+    }
+  }, [viewMode, id, existing])
 
   useEffect(() => {
     if (id && existing) {
@@ -110,10 +125,10 @@ export default function JournalEditor() {
     }
   }
 
-  const onSave = () => {
+  const onSave = async () => {
     const now = new Date().toISOString()
-    const entry: JournalEntry = {
-      id: id || crypto.randomUUID(),
+    const base: JournalEntry = {
+      id: existing?.id || '',
       title,
       content,
       tags,
@@ -122,14 +137,36 @@ export default function JournalEditor() {
       sentiment,
       mode: viewMode,
       createdAt: existing?.createdAt || now,
-      updatedAt: now
+      updatedAt: now,
     }
-    upsert(entry)
-    toast.success('Entry saved')
-    navigate('/journal')
+
+    try {
+      const saved = existing && existing.id
+        ? await updateJournalEntry(base, audioSource || undefined)
+        : await createJournalEntry(base, audioSource || undefined)
+
+      upsert(saved)
+      toast.success('Entry saved')
+      navigate('/journal')
+    } catch (e) {
+      console.error('Failed to save journal entry', e)
+      toast.error('Failed to save entry')
+    }
   }
 
   const sentimentPct = typeof sentiment === 'number' ? Math.round(((sentiment + 1) / 2) * 100) : undefined
+
+  const onDelete = () => {
+    if (!id) return
+    const ok = window.confirm('Delete this entry? This cannot be undone.')
+    if (!ok) return
+    remove(id)
+    deleteJournalEntry(id).catch(err => {
+      console.warn('Failed to delete entry on server', err)
+    })
+    toast.success('Entry deleted')
+    navigate('/journal')
+  }
 
   return (
     <div className="space-y-6">
@@ -144,7 +181,20 @@ export default function JournalEditor() {
             value={title}
             onChange={(e)=>setTitle(e.target.value)}
           />
-          <button onClick={onSave} className="btn btn-primary" aria-label="Save entry">Save</button>
+          <div className="flex items-center gap-2">
+            {existing && id && (
+              <button
+                type="button"
+                onClick={onDelete}
+                className="btn btn-ghost"
+                aria-label="Delete entry"
+              >
+                <Trash2 className="size-4 mr-1" />
+                Delete
+              </button>
+            )}
+            <button onClick={onSave} className="btn btn-primary" aria-label="Save entry">Save</button>
+          </div>
         </div>
         <div className="flex items-center justify-between text-xs">
           <p className="opacity-70">Mode: {viewMode === 'text' ? 'Text' : 'Voice'}</p>
@@ -177,18 +227,15 @@ export default function JournalEditor() {
               value={content}
               onChange={(e)=>setContent(e.target.value)}
             />
-            <div className="mt-3">
-              <TagInput value={tags} onChange={setTags} />
-            </div>
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 onClick={analyzeText}
                 className="btn btn-ghost"
-                aria-label="Analyze text emotion"
+                aria-label="Get emotional feedback from text"
                 disabled={analyzingText}
                 aria-busy={analyzingText}
               >
-                {analyzingText ? 'Analyzing…' : 'Analyze text emotion'}
+                {analyzingText ? 'Analyzing…' : 'Get emotional feedback'}
               </button>
               {!dictating ? (
                 <button onClick={startDictation} className="btn btn-ghost" aria-label="Start dictation" aria-pressed="false">Start dictation</button>
@@ -200,67 +247,79 @@ export default function JournalEditor() {
         ) : (
           <section className="lg:col-span-2 card" aria-label="Voice journaling">
             <h3 className="font-semibold mb-2">Voice journal</h3>
-            <AudioRecorder onFinish={async (blob, url) => {
+            <AudioRecorder onFinish={(blob, url) => {
               setAudioUrl(url)
-              setAnalyzingAudio(true)
-              try {
-                const { emotion, sentiment } = await analyzeAudioEmotion(blob)
-                setEmotion(emotion); setSentiment(sentiment)
-                toast.success('Audio analyzed')
-              } catch (e) {
-                toast.error('Failed to analyze audio')
-              } finally {
-                setAnalyzingAudio(false)
-              }
+              setUploadedFileName(null)
+              setAudioSource(blob)
+              toast.info('Recording ready. Click "Get emotional feedback" to analyze.')
             }} />
+            <div className="mt-4 rounded-lg border border-dashed border-neutral-300 dark:border-neutral-700 bg-neutral-50/60 dark:bg-neutral-900/40 p-3">
+              <p className="text-xs font-medium opacity-80">Or upload an existing recording</p>
+              <p className="text-[11px] opacity-70 mt-1">Supports common audio formats (mp3, wav, m4a, webm).</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  Choose audio file
+                </button>
+                {uploadedFileName && (
+                  <span className="text-[11px] opacity-80 truncate max-w-[200px]" aria-live="polite">
+                    Selected: {uploadedFileName}
+                  </span>
+                )}
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="audio/*"
+                className="sr-only"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  setUploadedFileName(file.name)
+                  const url = URL.createObjectURL(file)
+                  setAudioUrl(url)
+                  setAudioSource(file)
+                }}
+              />
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={analyzingAudio}
+                aria-busy={analyzingAudio}
+                onClick={async () => {
+                  if (!audioSource) {
+                    toast.error('Record or upload audio first')
+                    return
+                  }
+                  setAnalyzingAudio(true)
+                  try {
+                    const { emotion, sentiment } = await analyzeAudioEmotion(audioSource)
+                    setEmotion(emotion); setSentiment(sentiment)
+                    toast.success('Audio analyzed')
+                  } catch (err) {
+                    toast.error('Failed to analyze audio')
+                  } finally {
+                    setAnalyzingAudio(false)
+                  }
+                }}
+              >
+                {analyzingAudio ? 'Analyzing…' : 'Get emotional feedback'}
+              </button>
+            </div>
             {audioUrl && <audio controls src={audioUrl} className="mt-3 w-full" aria-label="Recorded audio playback" />}
             {analyzingAudio && <p className="mt-2 text-xs opacity-70" aria-live="polite">Analyzing audio…</p>}
-            <div className="mt-3">
-              <TagInput value={tags} onChange={setTags} />
-            </div>
           </section>
         )}
 
         <aside className="space-y-4">
-          {viewMode === 'text' && (
-            <div className="card" aria-label="Voice journal recorder (optional)">
-              <h3 className="font-semibold mb-2">Voice journal</h3>
-              <AudioRecorder onFinish={async (blob, url) => {
-                setAudioUrl(url)
-                setAnalyzingAudio(true)
-                try {
-                  const { emotion, sentiment } = await analyzeAudioEmotion(blob)
-                  setEmotion(emotion); setSentiment(sentiment)
-                  toast.success('Audio analyzed')
-                } catch (e) {
-                  toast.error('Failed to analyze audio')
-                } finally {
-                  setAnalyzingAudio(false)
-                }
-              }} />
-              {audioUrl && <audio controls src={audioUrl} className="mt-3 w-full" aria-label="Recorded audio playback" />}
-              {analyzingAudio && <p className="mt-2 text-xs opacity-70" aria-live="polite">Analyzing audio…</p>}
-            </div>
-          )}
-          <div className="card" aria-label="Emotion visualization">
-            <h3 className="font-semibold mb-2">Emotion</h3>
-            <EmotionChart emotion={emotion} />
-            {typeof sentiment === 'number' && (
-              <div className="mt-3">
-                <p className="text-sm opacity-80">Sentiment index: {sentiment.toFixed(2)}</p>
-                {typeof sentimentPct === 'number' && (
-                  <div className="mt-1">
-                    <div className="h-2 w-full rounded bg-neutral-200 dark:bg-neutral-800" aria-hidden="true">
-                      <div
-                        className="h-2 rounded bg-gradient-to-r from-rose-500 via-yellow-500 to-green-600"
-                        style={{ width: `${sentimentPct}%` }}
-                      />
-                    </div>
-                    <p className="text-xs opacity-70 mt-1" aria-hidden="true">{sentimentPct}% positive</p>
-                  </div>
-                )}
-              </div>
-            )}
+          <div className="card" aria-label="AI emotional feedback">
+            <h3 className="font-semibold mb-2">AI emotional feedback</h3>
+            <EmotionInsight emotion={emotion} sentiment={sentiment} mode={viewMode} />
           </div>
         </aside>
       </div>

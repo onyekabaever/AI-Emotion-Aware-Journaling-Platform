@@ -3,20 +3,20 @@ import { useState } from 'react'
 import { useAuth } from '../../state/auth'
 import { useNavigate, Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Mail, Lock, Eye, EyeOff, ShieldCheck } from 'lucide-react'
+import { User, Lock, Eye, EyeOff, ShieldCheck } from 'lucide-react'
 
 export default function SignIn() {
   const { signIn } = useAuth()
   const nav = useNavigate()
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({})
+  const [errors, setErrors] = useState<{ username?: string; password?: string }>({})
 
   const validate = () => {
     const next: typeof errors = {}
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) next.email = 'Enter a valid email address.'
+    if (!username.trim()) next.username = 'Enter your username.'
     if (!password) next.password = 'Enter your password.'
     setErrors(next)
     return Object.keys(next).length === 0
@@ -27,7 +27,7 @@ export default function SignIn() {
     if (!validate()) return
     try {
       setLoading(true)
-      await signIn(email.trim(), password)
+      await signIn(username.trim(), password)
       toast.success('Signed in')
       nav('/app')
     } catch (err) {
@@ -47,23 +47,22 @@ export default function SignIn() {
 
       <form onSubmit={onSubmit} className="mt-6 space-y-4" noValidate>
         <div>
-          <label htmlFor="email" className="text-sm font-medium">Email</label>
+          <label htmlFor="username" className="text-sm font-medium">Username</label>
           <div className="relative mt-1">
             <input
-              id="email"
+              id="username"
               className="input w-full pr-10"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              type="email"
-              autoComplete="email"
-              aria-invalid={Boolean(errors.email)}
-              aria-describedby={errors.email ? 'email-error' : undefined}
+              placeholder="your-username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoComplete="username"
+              aria-invalid={Boolean(errors.username)}
+              aria-describedby={errors.username ? 'username-error' : undefined}
               required
             />
-            <Mail className="size-4 absolute right-3 top-1/2 -translate-y-1/2 opacity-60 pointer-events-none" />
+            <User className="size-4 absolute right-3 top-1/2 -translate-y-1/2 opacity-60 pointer-events-none" />
           </div>
-          {errors.email && <p id="email-error" className="mt-1 text-sm text-red-600 dark:text-red-400" aria-live="polite">{errors.email}</p>}
+          {errors.username && <p id="username-error" className="mt-1 text-sm text-red-600 dark:text-red-400" aria-live="polite">{errors.username}</p>}
         </div>
 
         <div>

@@ -18,7 +18,7 @@ export default function JournalNew() {
               <PenLine className="size-5 text-indigo-600" aria-hidden />
               <p className="font-semibold">Text journaling</p>
             </div>
-            <p className="text-sm opacity-80 mt-2">Write with tags, dictation, and emotion analysis from text.</p>
+            <p className="text-sm opacity-80 mt-2">Write with dictation and emotion analysis from text.</p>
             <span className="btn btn-primary mt-3">Start</span>
           </Link>
           <Link to="/journal/new/voice" className="card hover:shadow-lg transition-shadow focus-visible:ring-2 focus-visible:ring-indigo-500" aria-label="Start voice journaling">
@@ -26,7 +26,7 @@ export default function JournalNew() {
               <Mic className="size-5 text-indigo-600" aria-hidden />
               <p className="font-semibold">Voice journaling</p>
             </div>
-            <p className="text-sm opacity-80 mt-2">Record audio and analyze emotion from voice. Add tags.</p>
+            <p className="text-sm opacity-80 mt-2">Record audio and analyze emotion from voice.</p>
             <span className="btn btn-primary mt-3">Start</span>
           </Link>
         </div>

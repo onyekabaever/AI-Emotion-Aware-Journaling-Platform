@@ -1,12 +1,5 @@
 
-export type EmotionScores = {
-  joy: number
-  sadness: number
-  anger: number
-  fear: number
-  surprise: number
-  neutral: number
-}
+export type EmotionScores = Record<string, number>
 
 export type JournalEntry = {
   id: string

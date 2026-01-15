@@ -3,18 +3,47 @@
 
 import axios from 'axios'
 import { EmotionScores } from '../types'
+import { useAuth } from '../state/auth'
 
 const API_BASE = import.meta.env.VITE_API_BASE as string | undefined
+
+function authHeaders() {
+  const token =
+    localStorage.getItem('access_token') ||
+    localStorage.getItem('auth_token') ||
+    undefined
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
 export async function analyzeTextEmotion(text: string): Promise<{ emotion: EmotionScores; sentiment: number }> {
   // Try remote API if configured
   if (API_BASE) {
     try {
-      const { data } = await axios.post(`${API_BASE}/analyze/text`, { text })
+      const { data } = await axios.post(
+        `${API_BASE}/machine_learning/analyze/text/`,
+        { text },
+        { headers: { ...authHeaders() } }
+      )
       if (data?.emotion && typeof data?.sentiment === 'number') {
         return data
       }
-    } catch (err) {
+    } catch (err: any) {
+      if (axios.isAxiosError(err) && err.response?.status === 401) {
+        try {
+          const { refreshAccessToken } = useAuth.getState()
+          await refreshAccessToken()
+          const { data } = await axios.post(
+            `${API_BASE}/machine_learning/analyze/text/`,
+            { text },
+            { headers: { ...authHeaders() } }
+          )
+          if (data?.emotion && typeof data?.sentiment === 'number') {
+            return data
+          }
+        } catch (refreshError) {
+          console.warn('Token refresh failed during text analysis', refreshError)
+        }
+      }
       console.warn('Text analysis API failed, falling back to local', err)
     }
   }
@@ -36,15 +65,73 @@ export async function analyzeTextEmotion(text: string): Promise<{ emotion: Emoti
 
 export async function analyzeAudioEmotion(blob: Blob): Promise<{ emotion: EmotionScores; sentiment: number }> {
   // Try remote API if configured
+  // For Voice Journal display, prefer the raw speech-label scores when available.
+  // We obtain these from the combined endpoint response: data.speech.raw.scores.
   if (API_BASE) {
-    try {
-      const fd = new FormData()
-      fd.append('file', blob, 'audio.webm')
-      const { data } = await axios.post(`${API_BASE}/analyze/audio`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
-      if (data?.emotion && typeof data?.sentiment === 'number') {
-        return data
+    const fd = new FormData()
+    fd.append('audio', blob, 'audio.webm')
+
+    const toScores = (obj: any): EmotionScores | null => {
+      if (!obj || typeof obj !== 'object') return null
+      return Object.fromEntries(
+        Object.entries(obj).map(([k, v]) => [k, Number(v) || 0]),
+      ) as EmotionScores
+    }
+
+    const attempt = async () => {
+      // Prefer combined endpoint (returns raw speech scores), fallback to speech endpoint.
+      try {
+        const { data } = await axios.post(
+          `${API_BASE}/machine_learning/analyze/combined/`,
+          fd,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+              ...authHeaders(),
+            },
+          }
+        )
+
+        const rawScores = toScores(data?.speech?.raw?.scores)
+        const canonicalScores = toScores(data?.speech?.emotion)
+        const sentiment = typeof data?.speech?.sentiment === 'number' ? data.speech.sentiment : 0
+
+        if (rawScores) return { emotion: rawScores, sentiment }
+        if (canonicalScores) return { emotion: canonicalScores, sentiment }
+      } catch (e) {
+        // ignore and try speech endpoint
       }
-    } catch (err) {
+
+      const { data } = await axios.post(
+        `${API_BASE}/machine_learning/analyze/speech/`,
+        fd,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            ...authHeaders(),
+          },
+        }
+      )
+      if (data?.emotion && typeof data?.sentiment === 'number') {
+        const scores = toScores(data.emotion)
+        if (scores) return { emotion: scores, sentiment: data.sentiment }
+      }
+
+      throw new Error('Unexpected audio analysis response')
+    }
+
+    try {
+      return await attempt()
+    } catch (err: any) {
+      if (axios.isAxiosError(err) && err.response?.status === 401) {
+        try {
+          const { refreshAccessToken } = useAuth.getState()
+          await refreshAccessToken()
+          return await attempt()
+        } catch (refreshError) {
+          console.warn('Token refresh failed during audio analysis', refreshError)
+        }
+      }
       console.warn('Audio analysis API failed, falling back to local', err)
     }
   }

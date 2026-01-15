@@ -31,6 +31,13 @@ backend/models/notebook/RAVDESS/
 # Model artifacts (ignore entire models directory)
 backend/models/notebook/models/
 
+# Training checkpoints and results (very large)
+backend/models/notebook/training_go_emotions_results/
+
+# Media files (uploaded audio, generated content)
+backend/media/
+backend/db.sqlite3
+
 # Jupyter notebook outputs
 *.nbconvert.ipynb
 

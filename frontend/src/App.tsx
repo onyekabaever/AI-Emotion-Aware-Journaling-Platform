@@ -5,6 +5,7 @@ import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
 import JournalList from './pages/journal/JournalList'
 import JournalEditor from './pages/journal/JournalEditor'
+import JournalView from './pages/journal/JournalView'
 import JournalNew from './pages/journal/JournalNew'
 import Insights from './pages/Insights'
 import Prompts from './pages/Prompts'
@@ -41,7 +42,8 @@ export default function App() {
         <Route path="journal" element={isAuthenticated ? <JournalList /> : <Navigate to="/signin" />} />
         <Route path="journal/new" element={isAuthenticated ? <JournalNew /> : <Navigate to="/signin" />} />
         <Route path="journal/new/:mode" element={isAuthenticated ? <JournalEditor /> : <Navigate to="/signin" />} />
-        <Route path="journal/:id" element={isAuthenticated ? <JournalEditor /> : <Navigate to="/signin" />} />
+        <Route path="journal/:id" element={isAuthenticated ? <JournalView /> : <Navigate to="/signin" />} />
+        <Route path="journal/:id/edit" element={isAuthenticated ? <JournalEditor /> : <Navigate to="/signin" />} />
         <Route path="insights" element={isAuthenticated ? <Insights /> : <Navigate to="/signin" />} />
         <Route path="prompts" element={isAuthenticated ? <Prompts /> : <Navigate to="/signin" />} />
         <Route path="search" element={isAuthenticated ? <Search /> : <Navigate to="/signin" />} />

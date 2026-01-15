@@ -14,7 +14,7 @@ export default function Settings() {
       </div>
       <div>
         <p className="font-semibold">Profile</p>
-        <p className="text-sm opacity-80">Signed in as {user?.name} ({user?.email})</p>
+        <p className="text-sm opacity-80">Signed in as {user?.username} ({user?.email})</p>
       </div>
       <div>
         <p className="font-semibold">Privacy</p>
