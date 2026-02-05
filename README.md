@@ -13,8 +13,6 @@ The system is a full-stack web application that supports:
 
 - `backend/`: Django REST API (authentication, journaling CRUD, media upload, ONNX inference)
 - `frontend/`: React + TypeScript (Vite) client application
-- `Chapter4_System_Design_and_Implementation.md`, `Chapter5_Evaluation_and_Testing.md`, `Chapter6_Conclusion_and_Future_Work.md`: dissertation chapter drafts
-- `Appendix_A_Run_Instructions.md`: complete setup/execution steps (Windows-first)
 
 ## Project Status
 
